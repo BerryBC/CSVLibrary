@@ -1,6 +1,6 @@
 ﻿Imports System.Data.OleDb
 Imports System.IO
-
+Imports System.IO.Compression
 
 
 Public Class LoadCSV
@@ -101,6 +101,109 @@ Public Class LoadCSV
 
         Return dtCSV
     End Function
+
+    Public Function SaveASNewOne(ByRef dtFromData As DataTable) As Boolean
+        Dim i As Integer
+        Dim drDataOrg As DataRow
+        Dim dcDataOrg As DataColumn
+        Dim strPathSaveFile As String
+        Dim swSaveStream As StreamWriter
+        Dim strtmpOutput As String
+        Dim intMaxItemNum As Integer
+        Dim j As Integer
+        Try
+
+            strPathSaveFile = strFolderName & "\" & strFileName
+            If System.IO.File.Exists(strPathSaveFile) Then
+                swSaveStream = New StreamWriter(File.Open(strPathSaveFile, FileMode.Open), Text.Encoding.GetEncoding("GB2312"))
+            Else
+                swSaveStream = New StreamWriter(File.Open(strPathSaveFile, FileMode.Create), Text.Encoding.GetEncoding("GB2312"))
+
+            End If
+            strtmpOutput = ""
+            For Each dcDataOrg In dtFromData.Columns
+                strtmpOutput += dcDataOrg.Caption & ","
+            Next
+            swSaveStream.Write(strtmpOutput & vbCrLf)
+
+            intMaxItemNum = dtFromData.Columns.Count - 1
+
+
+            j = 0
+
+            For Each drDataOrg In dtFromData.Rows
+                strtmpOutput = ""
+                For i = 0 To intMaxItemNum
+                    strtmpOutput += drDataOrg.Item(i) & ","
+                Next
+                swSaveStream.Write(strtmpOutput & vbCrLf)
+                If j > 5000 Then
+                    swSaveStream.Flush()
+
+                End If
+            Next
+        Catch ex As Exception
+            Throw New Exception(ex.Message, ex)
+        Finally
+            If swSaveStream IsNot Nothing Then
+                swSaveStream.Flush()
+                swSaveStream.Close()
+                swSaveStream = Nothing
+            End If
+        End Try
+
+        Return True
+    End Function
+
+
+
+
+    Public Sub CompressFile(ByVal sourceFile As String, ByVal destinationFile As String)
+        '压缩档案
+        If Not File.Exists(sourceFile) Then
+            Throw New FileNotFoundException
+        End If
+
+        Dim sourceStream As FileStream = Nothing
+        Dim destinationStream As FileStream = Nothing
+        Dim compressedStream As GZipStream = Nothing
+
+        Try
+            'Read the bytes from the source file into a byte array
+            sourceStream = New FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read)
+            'Read the source stream values into the buffer
+            Dim buffer(sourceStream.Length - 1) As Byte
+            Dim checkCounter As Integer = sourceStream.Read(buffer, 0, buffer.Length)
+
+            If checkCounter <> buffer.Length Then
+                Throw New ApplicationException
+            End If
+
+            'Open the FileStream to write to
+            destinationStream = New FileStream(destinationFile, FileMode.OpenOrCreate, FileAccess.Write)
+
+            'Create a compression stream pointing to the destiantion stream
+            compressedStream = New GZipStream(destinationStream, CompressionMode.Compress, True)
+
+            'Now write the compressed data to the destination file
+            compressedStream.Write(buffer, 0, buffer.Length)
+        Catch ex As ApplicationException
+            Throw New Exception(ex.Message, ex)
+        Finally
+            'Make sure we allways close all streams
+            If sourceStream IsNot Nothing Then
+                sourceStream.Close()
+            End If
+            If compressedStream IsNot Nothing Then
+                compressedStream.Close()
+            End If
+
+            If destinationStream IsNot Nothing Then
+                destinationStream.Close()
+            End If
+        End Try
+    End Sub
+
 
 
     ''' <summary>
